@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-deployment
+spec:
+  replicas: 1
+  selector:
+   matchLabels:
+     app: springboot 
+  template:
+    metadata:
+      labels:
+        app: springboot
+    spec:
+      containers:
+      - image: balu0311/spring-boot-mongo:{{BUILD_NUMBER}}
+        name: springboot
+        ports:
+        - containerPort: 8080      
+---
+# Node Port Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: springbootsvc
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    name: springboot-deployment
+---
+# Mongo host path rc
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  labels:
+    name: mongo
+  name: mongo-controller
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: mongo
+    spec:
+      containers:
+      - image: mongo
+        name: mongo
+        ports:
+        - name: mongo
+          containerPort: 27017
+          hostPort: 27017
+        volumeMounts:
+        - name: mongo-persistent-storage
+          mountPath: /data/db
+      volumes:
+      - name: mongo-persistent-storage
+        hostPath:
+         path: /tmp/dbbackup
+---
+# Mongo Node Port RC
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: mongo
+  name: mongo
+spec:
+  type: ClusterIP
+  ports:
+    - port: 27017
+      targetPort: 27017
+  selector:
+    name: mongo
